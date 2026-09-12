@@ -1,0 +1,292 @@
+{
+  "arms": {
+    "always_book_now": {
+      "actionable_samples": 9487,
+      "hit_rate": 0.356699,
+      "is_lower_bound": false,
+      "label": "every verdict forced to book_now",
+      "mean_regret_minor": 978.323637,
+      "mean_regret_minor_actionable": 839.274797,
+      "median_regret_minor": 300.0,
+      "samples": 23205,
+      "total_paid_minor": 939736300
+    },
+    "baseline": {
+      "actionable_samples": 9487,
+      "hit_rate": 0.36471,
+      "is_lower_bound": false,
+      "label": "the baseline model",
+      "mean_regret_minor": 1044.624003,
+      "mean_regret_minor_actionable": 1001.444081,
+      "median_regret_minor": 300.0,
+      "samples": 23205,
+      "total_paid_minor": 941274800
+    },
+    "hindsight_oracle": {
+      "actionable_samples": 9487,
+      "hit_rate": null,
+      "is_lower_bound": true,
+      "label": "hindsight lower bound: pays the cheapest observed price; no real user can",
+      "mean_regret_minor": 0.0,
+      "mean_regret_minor_actionable": 0.0,
+      "median_regret_minor": 0.0,
+      "samples": 23205,
+      "total_paid_minor": 917034300
+    }
+  },
+  "as_of_dates": [
+    "2026-06-12",
+    "2026-06-19",
+    "2026-06-26",
+    "2026-07-03",
+    "2026-07-10",
+    "2026-07-17",
+    "2026-07-24",
+    "2026-07-31",
+    "2026-08-07",
+    "2026-08-14",
+    "2026-08-21",
+    "2026-08-28",
+    "2026-09-04"
+  ],
+  "by_route": {
+    "ATL-MIA": {
+      "always_book_now_mean_regret_minor": 217.323853,
+      "baseline_mean_regret_minor": 237.879767,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 535,
+        "neutral": 943,
+        "wait": 69
+      }
+    },
+    "BOS-DUB": {
+      "always_book_now_mean_regret_minor": 926.05042,
+      "baseline_mean_regret_minor": 1001.55139,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 559,
+        "neutral": 921,
+        "wait": 67
+      }
+    },
+    "CDG-FCO": {
+      "always_book_now_mean_regret_minor": 185.714286,
+      "baseline_mean_regret_minor": 192.17841,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 571,
+        "neutral": 908,
+        "wait": 68
+      }
+    },
+    "JFK-CDG": {
+      "always_book_now_mean_regret_minor": 1443.697479,
+      "baseline_mean_regret_minor": 1493.277311,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 566,
+        "neutral": 903,
+        "wait": 78
+      }
+    },
+    "JFK-LAX": {
+      "always_book_now_mean_regret_minor": 576.923077,
+      "baseline_mean_regret_minor": 656.431803,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 564,
+        "neutral": 903,
+        "wait": 80
+      }
+    },
+    "JFK-LHR": {
+      "always_book_now_mean_regret_minor": 1893.471235,
+      "baseline_mean_regret_minor": 2246.34777,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 577,
+        "neutral": 879,
+        "wait": 91
+      }
+    },
+    "LAX-JFK": {
+      "always_book_now_mean_regret_minor": 506.076277,
+      "baseline_mean_regret_minor": 531.544926,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 577,
+        "neutral": 900,
+        "wait": 70
+      }
+    },
+    "LAX-NRT": {
+      "always_book_now_mean_regret_minor": 2346.800259,
+      "baseline_mean_regret_minor": 2326.502909,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 548,
+        "neutral": 916,
+        "wait": 83
+      }
+    },
+    "LHR-BCN": {
+      "always_book_now_mean_regret_minor": 207.886231,
+      "baseline_mean_regret_minor": 230.18746,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 575,
+        "neutral": 904,
+        "wait": 68
+      }
+    },
+    "LHR-JFK": {
+      "always_book_now_mean_regret_minor": 1155.20362,
+      "baseline_mean_regret_minor": 1234.776988,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 545,
+        "neutral": 935,
+        "wait": 67
+      }
+    },
+    "MAD-LIS": {
+      "always_book_now_mean_regret_minor": 153.910795,
+      "baseline_mean_regret_minor": 168.325792,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 551,
+        "neutral": 928,
+        "wait": 68
+      }
+    },
+    "ORD-DEN": {
+      "always_book_now_mean_regret_minor": 336.586942,
+      "baseline_mean_regret_minor": 379.896574,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 550,
+        "neutral": 925,
+        "wait": 72
+      }
+    },
+    "SEA-ICN": {
+      "always_book_now_mean_regret_minor": 1699.353588,
+      "baseline_mean_regret_minor": 1816.289593,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 527,
+        "neutral": 949,
+        "wait": 71
+      }
+    },
+    "SFO-HND": {
+      "always_book_now_mean_regret_minor": 1817.840983,
+      "baseline_mean_regret_minor": 1874.208145,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 578,
+        "neutral": 900,
+        "wait": 69
+      }
+    },
+    "SFO-LHR": {
+      "always_book_now_mean_regret_minor": 1208.015514,
+      "baseline_mean_regret_minor": 1279.961215,
+      "samples": 1547,
+      "verdict_counts": {
+        "book_now": 575,
+        "neutral": 904,
+        "wait": 68
+      }
+    }
+  },
+  "config_digest": "d0a2319eebaca6fb4fc93c8fe5b864943995d33f112de7f3119195594d1f5bec",
+  "dataset_sha256": "ea53bf1371cf6b3bc572475d50dce01c31a20d522d7bc8c98f067c8cc634ba8c",
+  "fixture_mode": true,
+  "generated_at": "2026-09-09T00:00:00Z",
+  "historical_rank_consistency": [
+    {
+      "decile": 0,
+      "predicted_mid": 5.0,
+      "realised_fraction_cheaper": 0.95266,
+      "samples": 4095
+    },
+    {
+      "decile": 1,
+      "predicted_mid": 15.0,
+      "realised_fraction_cheaper": 0.849011,
+      "samples": 3048
+    },
+    {
+      "decile": 2,
+      "predicted_mid": 25.0,
+      "realised_fraction_cheaper": 0.745941,
+      "samples": 2576
+    },
+    {
+      "decile": 3,
+      "predicted_mid": 35.0,
+      "realised_fraction_cheaper": 0.646427,
+      "samples": 2194
+    },
+    {
+      "decile": 4,
+      "predicted_mid": 45.0,
+      "realised_fraction_cheaper": 0.544954,
+      "samples": 2026
+    },
+    {
+      "decile": 5,
+      "predicted_mid": 55.0,
+      "realised_fraction_cheaper": 0.444079,
+      "samples": 1701
+    },
+    {
+      "decile": 6,
+      "predicted_mid": 65.0,
+      "realised_fraction_cheaper": 0.344946,
+      "samples": 1619
+    },
+    {
+      "decile": 7,
+      "predicted_mid": 75.0,
+      "realised_fraction_cheaper": 0.244797,
+      "samples": 1539
+    },
+    {
+      "decile": 8,
+      "predicted_mid": 85.0,
+      "realised_fraction_cheaper": 0.145995,
+      "samples": 1490
+    },
+    {
+      "decile": 9,
+      "predicted_mid": 95.0,
+      "realised_fraction_cheaper": 0.043522,
+      "samples": 2002
+    }
+  ],
+  "horizon_days": 60,
+  "samples": 23205,
+  "scenario": "fixture-v1",
+  "scenario_version": 1,
+  "skipped_no_future_observation": 195,
+  "stride_days": 7,
+  "unavailable_counts": {
+    "thin_route_history": 915
+  },
+  "verdict_counts": {
+    "book_now": 8398,
+    "neutral": 13718,
+    "wait": 1089
+  },
+  "wait": {
+    "hit_rate": 0.280073,
+    "mean_saving_vs_book_now_minor": -1412.764004,
+    "mean_target_error_minor": 7610.429752,
+    "median_abs_target_error_minor": 5800.0,
+    "samples": 1089,
+    "window_hit_rate": 0.018365
+  }
+}

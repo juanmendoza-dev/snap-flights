@@ -1,0 +1,46 @@
+# Frozen evaluation scenario (decision 0002 D5). Versioned independently of the results in
+# models/backtest/reports/. Change the sample set by adding fixture-v2.yaml, not by editing
+# this file, and never edit the dataset to change a result: the harness checks its SHA-256.
+name: fixture-v1
+version: 1
+description: >-
+  Walk-forward over the committed synthetic fixture: every route, as_of every 7 days from the
+  first fetched_date, every departure 1-120 days out observed on that as_of, scored over the
+  following 60 days.
+dataset:
+  path: data/fixtures/fare_observations.parquet
+  sha256: ea53bf1371cf6b3bc572475d50dce01c31a20d522d7bc8c98f067c8cc634ba8c
+routes:
+  - ATL-MIA
+  - BOS-DUB
+  - CDG-FCO
+  - JFK-CDG
+  - JFK-LAX
+  - JFK-LHR
+  - LAX-JFK
+  - LAX-NRT
+  - LHR-BCN
+  - LHR-JFK
+  - MAD-LIS
+  - ORD-DEN
+  - SEA-ICN
+  - SFO-HND
+  - SFO-LHR
+as_of_dates:
+  - 2026-06-12
+  - 2026-06-19
+  - 2026-06-26
+  - 2026-07-03
+  - 2026-07-10
+  - 2026-07-17
+  - 2026-07-24
+  - 2026-07-31
+  - 2026-08-07
+  - 2026-08-14
+  - 2026-08-21
+  - 2026-08-28
+  - 2026-09-04
+stride_days: 7
+horizon_days: 60
+min_days_to_departure: 1
+max_days_to_departure: 120
