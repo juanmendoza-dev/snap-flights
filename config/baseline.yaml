@@ -1,0 +1,53 @@
+# Baseline prediction model (SF-06). Every threshold the model uses lives in this file.
+# Defaults are the values written into specs/subfeatures/SF-06-baseline-prediction-model.md.
+schema_version: 1
+
+history:
+  # Trailing window of fetched_date used to build every distribution.
+  window_days: 365
+  # A (route, AP bucket) cell thinner than this cannot produce a verdict:
+  # predict() returns neutral / low with a data_quality_note (SF-07 "thin data").
+  min_cell_observations: 30
+
+advance_purchase_buckets:
+  - {name: "0-3",   min_days: 0,  max_days: 3}
+  - {name: "4-7",   min_days: 4,  max_days: 7}
+  - {name: "8-14",  min_days: 8,  max_days: 14}
+  - {name: "15-21", min_days: 15, max_days: 21}
+  - {name: "22-30", min_days: 22, max_days: 30}
+  - {name: "31-45", min_days: 31, max_days: 45}
+  - {name: "46-60", min_days: 46, max_days: 60}
+  - {name: "61-90", min_days: 61, max_days: 90}
+  - {name: "90+",   min_days: 91, max_days: null}   # null = unbounded
+
+curve:
+  # expected_curve spans days_to_departure from dtd_now down to max(0, dtd_now - horizon_days).
+  horizon_days: 90
+  # Centred rolling mean over the raw per-day series; 1 disables smoothing.
+  smoothing_window_days: 7
+  # Cells with fewer than this many observations fall back to the (route, AP bucket)
+  # median instead of the (route, AP bucket, month, DOW) median.
+  min_cell_observations: 10
+
+verdict:
+  book_now:
+    max_percentile: 25
+    min_curve_rise_pct: 5.0
+  wait:
+    min_percentile: 60
+    min_curve_drop_pct: 7.0
+    search_horizon_days: 60
+
+confidence:
+  low:
+    max_observations: 100     # strictly fewer than this -> low
+    max_cov: 0.35             # CoV strictly greater than this -> low
+  high:
+    min_observations: 500     # at least this many AND
+    max_cov: 0.18             # CoV strictly below this -> high
+
+backtest:
+  horizon_days: 60
+  # Fetched dates are sampled every N days across the available history.
+  stride_days: 7
+  report_path: "models/backtest/reports/latest.json"
