@@ -14,3 +14,4 @@ Spec phase. No implementation yet. Start at **[`specs/README.md`](specs/README.m
 - `specs/subfeatures/` — the MVP spine, one spec per agent-sized piece
 
 MVP spine: collect fares → store snapshots → baseline prediction → show buy-vs-wait.
+
