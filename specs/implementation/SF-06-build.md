@@ -584,42 +584,12 @@ exactly once, in step 1, and never touches a clock after that — so SF-07 can c
 
 ## 5. Backtest harness
 
-```python
-# models/backtest/metrics.py
-class BacktestSample(BaseModel):
-    route_key: str
-    depart_date: date
-    as_of: date
-    days_to_departure: int
-    verdict: Verdict
-    confidence: Confidence
-    price_percentile: int
-    price_now_minor: int
-    best_future_minor: int      # min observed price over the scored window
-    paid_minor: int             # price_now if book_now; best_future if wait/neutral-as-book
-    regret_minor: int           # paid_minor - min(price_now, best_future)
-
-class BacktestReport(BaseModel):
-    generated_at: datetime
-    config_digest: str            # sha256 of the serialised BaselineConfig, for traceability
-    fixture_mode: bool
-    samples: int
-    horizon_days: int
-    hit_rate: float               # over book_now + wait samples only
-    hit_rate_always_book_now: float   # same samples, verdict forced to book_now
-    hit_rate_by_verdict: dict[str, float]
-    verdict_counts: dict[str, int]
-    mean_regret_minor: float
-    median_regret_minor: float
-    percentile_calibration: list[CalibrationBin]   # 10 deciles
-    by_route: dict[str, RouteMetrics]
-
-class CalibrationBin(BaseModel):
-    decile: int                   # 0..9, predicted percentile band
-    predicted_mid: float          # 5, 15, ... 95
-    realised_fraction_cheaper: float  # fraction of window prices above the scored price
-    samples: int
-```
+**Report types.** Superseded by decision 0002 D5/D6 and §6a. `models/backtest/metrics.py`
+defines them: `BacktestSample` (per-sample `paid_minor` from the verdict's policy,
+`oracle_paid_minor`, and `target_error_minor` / `window_hit` on `wait`) and `BacktestReport`
+with `arms` (`baseline`, `always_book_now`, `hindsight_oracle`), `wait`,
+`historical_rank_consistency` (10 decile bins) and `by_route`. The report carries aggregates
+only, not samples.
 
 ```python
 # models/backtest/harness.py
@@ -652,32 +622,20 @@ across the available `fetched_date` range and `1 <= dtd_now`:
 - `best_future` = min collapsed price for `(route, depart_date)` over
   `fetched_date` in `(as_of, min(as_of + horizon_days, depart_date)]`. Samples with no
   future observation are skipped.
-- A `book_now` is a **hit** when `price_now <= best_future`. A `wait` is a hit when
-  `best_future < price_now`. `neutral` samples are counted in `verdict_counts` and excluded
-  from `hit_rate`.
-- `hit_rate_always_book_now` scores the **same sample set** with every verdict forced to
-  `book_now`. This is the comparator SF-06's Done-when bullet requires; comparing against a
-  different sample set would not be a comparison.
+- **Paid prices, hits, regret and the reference arms: see §6a** (decision 0002 D5). `wait`
+  pays from the executable policy, never the hindsight minimum. All three arms are scored on
+  the same sample set.
 
-**If the baseline does not beat always-`book_now` on the first run.** The knobs are in the
-*fixture*, not the model: the rising/dip split and the trough depth in `SF-03-build.md` §4.3
-are what give `wait` anything to win on. Widen the dip fraction or deepen the trough and
-regenerate the fixture (a reviewed change, per L0 §7). Do **not** move the thresholds in
-`config/baseline.yaml` to make the comparator lose — that is fitting the model to its own
-test, and the numbers in that file are SF-06's published rules.
+**There is no win gate** (0002 D5). The fixture is never edited, and `config/baseline.yaml`
+is never retuned, to make the baseline beat a reference arm. A loss is reported in
+`latest.json` and in the commit that regenerates it.
 
-**Calibration tolerances** in §6 are provisional: set them from the first clean run, tighten
-them to the observed spread plus headroom, and record the run's numbers in the commit
-message. A tolerance nobody has measured is a test that fails for reasons unrelated to a bug.
-- `regret_minor` = what you paid minus the best you could have got, so a correct call has
-  zero regret.
-- Calibration: bin samples by predicted `price_percentile` decile; within a bin,
-  `realised_fraction_cheaper` is the mean fraction of **the same (route, AP bucket) trailing
-  cell the percentile was ranked in** whose prices are above the scored price. Scoring the
-  percentile against the sample it came from is the only way the two are comparable — a
-  forward-looking "fraction of this trip's future window prices" measures a different
-  distribution and would not agree decile-by-decile even with a correct implementation. A
-  calibrated p90 bin has ~0.10.
+**Historical-rank consistency** (0002 D6: not forecast calibration). Samples are binned by
+`price_percentile` decile. Within a bin, `realised_fraction_cheaper` is the mean fraction of
+the same (route, AP bucket) trailing cell the percentile was ranked in whose prices are
+strictly above the scored price. A consistent p90 bin sits near 0.10. That is a property of
+the rank, not a forward probability. Tolerances come from the first clean run and are
+recorded in that commit's message.
 
 ## 6. Test list — mapped to SF-06's Done when
 
@@ -752,6 +710,13 @@ that means the note's "Only {n} observations" and `basis.observations` are the s
 `Basis.ap_bucket` is `str | None`, `None` only for `departure_in_past` (a departed flight
 has no AP bucket, §3.1).
 
+A caller-supplied price whose currency differs from the route history's is never ranked
+against it (L0 forbids conversion). 0002's enum has no dedicated value for this, so it maps
+to `no_route_history` ("no history in this unit"), with basis counts `0` and the note naming
+the currency: "No price history for {route} in {currency}." SF-07 should show
+`data_quality_note` for this branch, because the enum alone would wrongly suggest the route
+has no data at all.
+
 **Backtest scoring.**
 - Scored window: `fetched_date` in `(as_of, min(as_of + horizon_days, depart_date)]`.
   Samples with no observation in it are skipped.
@@ -782,7 +747,9 @@ alone and never needs to know a route's region or tier.
 
 1. `from models.baseline import predict, latest_observed_price, TripShape, Money,
    CurrentPrice, Prediction, CurvePoint, ExpectedLow, Basis, Verdict, Confidence,
-   PriceSource, BaselineConfig, load_baseline_config`.
+   PriceSource, DataUnavailableReason, BaselineConfig, load_baseline_config`
+   (`CurveResult` is exported too; SF-07 does not need it). Checked by
+   `tests/models/test_predict.py::test_public_interface_frozen_for_sf07`.
 2. `predict(trip_shape, current_price=None, *, as_of=None, config=None, store=None)
    -> Prediction` **never raises** for thin data, an unknown route, an empty store, or a
    departure date outside the fixture range. It raises only for a malformed `TripShape`,
@@ -790,15 +757,22 @@ alone and never needs to know a route's region or tier.
 3. `Prediction` is a Pydantic v2 model. `Prediction.model_dump(mode="json", by_alias=True)`
    produces JSON-ready values (dates as ISO strings, `basis.from_` serialised as `from`).
    SF-07 nests it, it does not re-derive it.
-4. `price_percentile` is an `int` in `[0, 100]` where **low means cheap**. SF-07's `reason`
-   and any UI must read "cheaper than `100 - price_percentile`% of history".
-5. `expected_curve` is ordered **descending** by `days_to_departure`, starts at `dtd_now`,
-   and has at most `config.curve.horizon_days + 1` points. It is `[]` only when the
-   departure date is in the past or the route has no usable history.
-6. `expected_low` is non-`None` **iff** `verdict == "wait"`.
-7. Thin data and unknown routes come back as `verdict="neutral"`, `confidence="low"`,
-   `data_quality_note` non-`None`. SF-07 maps this straight to its documented `200`
-   response — no special-casing in `api/`.
+4. `price_percentile` is an `int` in `[0, 100]` where **low means cheap**, or `null` exactly
+   when `data_unavailable_reason` is set (0002 D3). SF-07's `reason` and any UI must read
+   "cheaper than `100 - price_percentile`% of history".
+5. `expected_curve` is ordered **descending** by `days_to_departure` and has at most
+   `config.curve.horizon_days + 1` points, none above `dtd_now`. A day whose AP bucket has no
+   data at all is **omitted**, so the first point may be *below* `dtd_now` (§6a). Callers
+   read the current value by `days_to_departure`, never by position, and a missing `dtd_now`
+   point forces `neutral`. The curve is `[]` only when the departure date is in the past or
+   the route has no usable history. On the committed fixture every route has all 9 buckets,
+   so no point is ever omitted there.
+6. `expected_low` is non-`None` **iff** `verdict == "wait"`, enforced by `Prediction`'s own
+   validator.
+7. Missing data (the four `data_unavailable_reason` values: thin data, unknown routes, no
+   price, a past departure) comes back as `verdict="neutral"`, `confidence="low"`,
+   `data_unavailable_reason` and `data_quality_note` both non-`None`. SF-07 maps this
+   straight to its documented `200` response, with no special-casing in `api/`.
 8. `latest_observed_price(trip_shape, as_of=None, store=None) -> CurrentPrice | None` is
    the only sanctioned way to fill an omitted `current_price`. Its `as_of` defaults to
    `shared.clock.today_utc()`. SF-07 must not query the store itself.
