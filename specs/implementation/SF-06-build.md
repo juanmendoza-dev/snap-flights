@@ -553,9 +553,10 @@ def predict(
       3. resolved <- current_price (source=user_supplied, as_of = the step-1 as_of date
          at 00:00:00+00:00 — derived, NOT a second clock read, so the Prediction stays
          byte-identical for fixed inputs) or latest_observed_price(...)
-         If both are absent -> return the thin-data Prediction, note
-         "No observed price for this route and date." price_percentile = 50,
-         expected_curve = [], expected_low = None.
+         If both are absent -> neutral / low, data_unavailable_reason = no_current_price,
+         note "No observed price for this route and date." price_percentile = None
+         (0002 D3), expected_low = None. The curve depends on history, not on the quote,
+         so expected_curve is still built (§8.5).
       4. distribution / bucket_distribution from history.
       5. cell <- bucket_distribution row for (route_key, ap_bucket(dtd_now))
          If missing or cell.count < history.min_cell_observations ->
@@ -682,9 +683,9 @@ message. A tolerance nobody has measured is a test that fails for reasons unrela
 
 | SF-06 "Done when" bullet | Test |
 |---|---|
-| `predict()` returns a fully populated `Prediction` for every route in the fixture set | `tests/models/test_predict.py::test_predict_all_fixture_routes` (parametrised over the 15 route keys × 3 departure dates at dtd 10 / 45 / 100; asserts every field non-null, `expected_curve` non-empty, `basis.observations > 0`), `::test_predict_is_deterministic`, `::test_predict_without_current_price_uses_store`, `::test_predict_never_raises_on_unknown_route` |
-| Percentiles are calibrated on the fixture data (a p90 call is beaten ~10% of the time) | `tests/models/test_backtest.py::test_percentile_calibration_within_tolerance` (every decile's `realised_fraction_cheaper` within ±0.08 of `1 - predicted_mid/100`; the p90 bin asserted tighter, ±0.05), `tests/models/test_percentile.py::test_rank_definition`, `::test_ties_use_midrank`, `::test_low_percentile_means_cheap` |
-| Backtest hit rate better than always-`book_now` | `tests/models/test_backtest.py::test_beats_always_book_now` (`report.hit_rate > report.hit_rate_always_book_now`), `::test_same_sample_set_for_both_arms`, `::test_walk_forward_never_reads_the_future` (monkeypatches `load_route_history` and asserts no call receives `as_of` beyond the sample's) |
+| `predict()` returns a `Prediction` for every route in the fixture set — populated where data supports it, honest `neutral` / `low` where not (0002 D3) | **Populated case:** `tests/models/test_predict.py::test_predict_all_fixture_routes` (parametrised over the 15 route keys × 3 departure dates at dtd 10 / 45 / 100; asserts every field non-null, `data_unavailable_reason is None`, `expected_curve` non-empty, `basis.observations > 0`). **Empty / thin case:** `::test_predict_unavailable_data_is_honest` (no history, no price, thin cell, past departure: `neutral` / `low`, reason enum set, `price_percentile is None`, user price echoed). Plus `::test_predict_is_deterministic`, `::test_predict_without_current_price_uses_store`, `::test_predict_never_raises_on_unknown_route` |
+| Historical-rank consistency holds on the fixture data (0002 D6 — not forward calibration) | `tests/models/test_backtest.py::test_historical_rank_consistency_within_tolerance` (tolerances set from the first clean run and recorded in commit 9's message), `tests/models/test_percentile.py::test_rank_definition`, `::test_ties_use_midrank`, `::test_low_percentile_means_cheap` |
+| The backtest produces hit rate, regret and window error for the baseline and both reference arms (0002 D5 — no win gate) | `tests/models/test_backtest.py::test_report_has_three_arms`, `::test_same_sample_set_for_every_arm`, `::test_oracle_is_a_lower_bound`, `::test_wait_pays_from_the_executable_policy`, `::test_walk_forward_never_reads_the_future` (monkeypatches `load_route_history` and asserts no call receives `as_of` beyond the sample's) |
 | `reason` and `basis` are populated and consistent with the numeric outputs | `tests/models/test_predict.py::test_reason_matches_verdict_template`, `::test_reason_percentile_matches_field` (the "cheaper than X%" in the string equals `100 - price_percentile`), `::test_reason_never_claims_a_period_outside_basis`, `::test_basis_counts_match_cell_size`, `::test_basis_sources_match_rows_used`, `::test_basis_from_to_within_history_window` |
 | Everything works with `SNAP_USE_FIXTURES=1` and no `data/snapshots/` | `tests/models/conftest.py` builds every store fixture that way; `tests/models/test_predict.py::test_works_in_fixture_mode_with_no_snapshots_dir` asserts the directory is absent and the call still succeeds |
 | All thresholds are config-driven | `tests/models/test_config.py::test_defaults_match_sf06_spec` (25 / 5.0 / 60 / 7.0 / 100 / 0.35 / 500 / 0.18), `::test_unknown_key_is_rejected`, `::test_missing_key_is_rejected`, `tests/models/test_verdict.py::test_lowering_book_now_threshold_changes_verdict`, `::test_raising_confidence_floor_changes_confidence`, `tests/models/test_predict.py::test_no_threshold_literals_in_module_source` (greps `models/baseline/curve.py` and `verdict.py` for the float forms `5.0`, `7.0`, `0.35`, `0.18` and fails if any appears; the integer thresholds are not grepped because `100` and `60` legitimately occur in percentile and date arithmetic) |
@@ -722,6 +723,54 @@ Supporting tests:
 | `test_predict.py::test_thin_data_note_shape` | thin cell → `neutral` / `low` / non-null note / HTTP-safe (no raise) |
 | `test_backtest.py::test_report_json_is_stable` | two runs produce byte-identical JSON |
 | `test_backtest.py::test_report_written_to_configured_path` | |
+
+## 6a. Decision 0002 as built — choices 0002 leaves open
+
+Pinned here so the code has one place to cite. Everything else in 0002 applies verbatim.
+
+**Curve result.** `expected_curve()` returns `CurveResult(as_of, depart_date, dtd_now,
+points)`; `Prediction.expected_curve` stays `list[CurvePoint]` (= `result.points`). A
+`dtd_now` point that was omitted (no cell, no bucket fallback) means there is no current
+curve value, and the verdict is `neutral`.
+
+**Expected low.** `wait_candidates(curve, config)` returns the eligible future points that
+clear `wait` condition 2. `decide_verdict` and `find_expected_low` both call it, so the two
+cannot disagree. `find_expected_low` returns `None` iff that set is empty (which includes
+`dtd_now == 0`). The window is the run of consecutive `days_to_departure` values containing
+the argmin, within the candidates, whose value is within 1% of the minimum.
+
+**Reason text.** `price_percentile` is `int | None`. The three templates substitute the
+*realised* curve move (`(max - now) / now` for `book_now`, `(now - low) / now` for `wait`),
+not the config threshold. A fourth template covers unavailable data and never states a
+percentile.
+
+**Unavailable data.** Reasons are checked in this order: `departure_in_past` →
+`no_route_history` → `no_current_price` → `thin_route_history`. `basis` counts are `0` and
+`sources` `[]` for the first two, where there is nothing to count. `no_current_price` and
+`thin_route_history` have rows, so `basis` reports what was actually there. For a thin cell
+that means the note's "Only {n} observations" and `basis.observations` are the same `n`.
+`Basis.ap_bucket` is `str | None`, `None` only for `departure_in_past` (a departed flight
+has no AP bucket, §3.1).
+
+**Backtest scoring.**
+- Scored window: `fetched_date` in `(as_of, min(as_of + horizon_days, depart_date)]`.
+  Samples with no observation in it are skipped.
+- `hindsight_oracle` pays `min(price_now, min price in window)`.
+- `book_now` and `neutral` pay `price_now`. Neutral means "no reason to wait".
+- `wait` pays the first in-window quote at or below `expected_low.amount_minor` with
+  `fetched_date` in `[window_start, window_end]`. If none appears, it pays the last observed
+  quote in the scored window: the deadline is the departure day, capped at the backtest
+  horizon so that every arm is scored on the same observations and the oracle stays a true
+  lower bound.
+- Hit: `book_now` when `price_now <= min(window)`; `wait` when `paid < price_now`.
+- `regret_minor = paid - oracle_paid`, which is never negative.
+- `target_error_minor` and `window_hit` are set on `wait` samples only.
+
+**Scenarios.** `models/backtest/scenarios/fixture-v1.yaml` freezes the routes, `as_of` dates,
+`days_to_departure` range, horizon, and the SHA-256 of the dataset they were written against.
+The harness refuses to score when the SHA does not match, so a fixture edit cannot silently
+change the evaluation. `run_backtest()` keeps its §5 signature; `main()` loads the default
+scenario.
 
 ## 7. Out of scope
 
